@@ -23,6 +23,12 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+国内网络如果安装慢，可以加清华镜像参数：
+
+```bash
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
 Windows PowerShell 激活虚拟环境：
 
 ```powershell
@@ -36,6 +42,8 @@ Copy-Item .env.example .env
 ```
 
 编辑 `.env`，把 `DEEPSEEK_API_KEY` 替换成你的真实 Key。
+
+`.env` 已加入 `.gitignore`，不会上传到 GitHub。
 
 ## 运行
 

@@ -166,10 +166,14 @@ TOOLS = [calculator, get_current_time, get_weather, save_note, list_notes, read_
 
 # ---------- 组装 Agent ----------
 def build_agent():
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise ValueError("请在 .env 中配置 DEEPSEEK_API_KEY，参考 .env.example")
+
     model = ChatOpenAI(
         model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
         base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-        api_key=os.getenv("DEEPSEEK_API_KEY"),
+        api_key=api_key,
         temperature=float(os.getenv("DEEPSEEK_TEMPERATURE", "0")),
     )
 
