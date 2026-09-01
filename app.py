@@ -7,7 +7,7 @@ import streamlit as st
 
 from agent_core import build_agent, get_final_answer, thread_config
 
-st.set_page_config(page_title="DeepSeek 智能体", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="建筑规范图集智能体", page_icon="🏗️", layout="wide")
 
 
 @st.cache_resource
@@ -38,7 +38,7 @@ if "thread_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.title("DeepSeek 工作助理")
+st.title("建筑规范图集智能体")
 
 with st.sidebar:
     st.header("会话")
@@ -59,9 +59,10 @@ with st.sidebar:
 
     st.divider()
     st.caption("内置工具")
+    st.write("- 规范检索：knowledge/ 知识库")
+    st.write("- 用量计算：混凝土 / 砖墙 / 涂料 / 钢筋")
+    st.write("- CAD 图纸：生成 DXF 平面图")
     st.write("- 计算器：安全数学计算")
-    st.write("- 当前时间：日期与时间")
-    st.write("- 天气查询：Open-Meteo 实时天气")
     st.write("- 笔记管理：保存 / 列出 / 读取")
 
     st.divider()
@@ -73,7 +74,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("例如：北京天气怎么样？帮我算一下预算，再记一条待办"):
+if prompt := st.chat_input("例如：住宅楼梯踏步高度有什么要求？帮我算 10m×5m×0.2m 混凝土用量，再生成一张平面图"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)

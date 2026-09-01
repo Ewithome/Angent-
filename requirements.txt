@@ -9,3 +9,6 @@ requests>=2.31
 fastapi>=0.115
 uvicorn>=0.30
 pydantic-settings>=2.0
+ezdxf>=1.4
+pypdf>=6.0
+python-docx>=1.1

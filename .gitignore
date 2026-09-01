@@ -13,3 +13,9 @@ notes/*.md
 !notes/.gitkeep
 .DS_Store
 .streamlit/secrets.toml
+knowledge/*.pdf
+knowledge/*.docx
+knowledge/*.txt
+knowledge/*.md
+!knowledge/README.md
+outputs/cad/*.dxf

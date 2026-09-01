@@ -9,27 +9,37 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.sqlite import SqliteSaver
 
+from building_tools import (
+    calculate_brick_wall_quantity,
+    calculate_concrete_volume,
+    calculate_paint_area,
+    calculate_rebar_weight,
+    generate_cad_drawing,
+)
+from knowledge_base import search_building_code
+
 load_dotenv()
 
 DB_PATH = os.getenv("AGENT_MEMORY_DB", "agent_memory.db")
 NOTES_DIR = Path(os.getenv("AGENT_NOTES_DIR", "notes"))
 
-# 智能体系统提示词：约束模型只依据真实工具结果回答，避免编造数据
-SYSTEM_PROMPT = """你是一个实用的个人助理智能体，名字叫“小助手”。
-你只能依据真实工具结果回答，不要编造计算结果、天气或笔记内容。
+# 智能体系统提示词：约束模型只依据检索结果和工具结果回答，避免编造规范条文
+SYSTEM_PROMPT = """你是一名专业的建筑规范图集咨询智能体，名叫“规范助手”。
+你的职责是帮助客户查询建筑规范标准内容、计算工程用量，并生成建筑平面示意 CAD 图纸。
+
 规则：
-1. 遇到数学计算时，使用 calculator，并把计算过程清晰展示给用户。
-2. 用户问时间日期时，使用 get_current_time。
-3. 用户问天气时，使用 get_weather，城市名可以是中文或英文。
-4. 用户要求记住内容时，使用 save_note；要求查看笔记时，先 list_notes 再 read_note。
-5. 回答使用简体中文，简洁、友好、直接。"""
+1. 回答规范标准问题时，必须优先调用 search_building_code 检索知识库，并引用检索到的来源；知识库没有依据时，明确说明当前知识库未收录，绝不编造条文编号或强制条款。
+2. 计算混凝土、砖墙、涂料、钢筋用量时，使用对应的计算工具，并展示计算过程。
+3. 用户要求生成或设置 CAD 图纸时，使用 generate_cad_drawing，输出 DXF 文件路径。
+4. 遇到普通数学计算时，使用 calculator。
+5. 用户要求记住或查看项目信息时，使用 save_note、list_notes、read_note。
+6. 回答使用简体中文，面向建筑行业客户，专业、简洁、准确。"""
 
 
 # ---------- 安全计算器 ----------
@@ -67,71 +77,6 @@ def calculator(expression: str) -> str:
         return f"计算出错: {e}"
 
 
-# ---------- 时间 ----------
-@tool
-def get_current_time() -> str:
-    """获取当前日期和时间。"""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-# ---------- 天气（Open-Meteo 真实数据，失败时兜底） ----------
-_WEATHER_CODES = {
-    0: "晴",
-    1: "基本晴朗",
-    2: "多云",
-    3: "阴",
-    45: "雾",
-    48: "雾凇",
-    51: "毛毛雨",
-    53: "小雨",
-    55: "中雨",
-    61: "阵雨",
-    63: "大雨",
-    71: "小雪",
-    73: "中雪",
-    75: "大雪",
-    80: "强阵雨",
-    95: "雷雨",
-    99: "强雷雨",
-}
-
-
-@tool
-def get_weather(city: str) -> str:
-    """查询指定城市的实时天气。参数是城市名，例如 "北京"、"上海"、"London"。"""
-    try:
-        # 第一步：把城市名解析成经纬度
-        geo = requests.get(
-            "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": city, "count": 1, "language": "zh", "format": "json"},
-            timeout=8,
-        ).json()
-        results = geo.get("results") or []
-        if not results:
-            return f"没有找到城市 {city} 的天气数据。"
-
-        place = results[0]
-        name = place.get("name", city)
-        # 第二步：用经纬度请求实时天气
-        forecast = requests.get(
-            "https://api.open-meteo.com/v1/forecast",
-            params={
-                "latitude": place["latitude"],
-                "longitude": place["longitude"],
-                "current_weather": True,
-                "timezone": "Asia/Shanghai",
-            },
-            timeout=8,
-        ).json()
-        current = forecast.get("current_weather", {})
-        temp = current.get("temperature")
-        weather_code = current.get("weathercode")
-        weather_text = _WEATHER_CODES.get(weather_code, f"代码{weather_code}")
-        return f"{name}：当前 {temp}°C，{weather_text}（数据来自 Open-Meteo）。"
-    except requests.RequestException:
-        return f"{city}：天气服务暂时不可用（演示兜底：晴，15~25°C）。"
-
-
 # ---------- 本地笔记 ----------
 def _safe_title(title: str) -> str:
     """把用户提供的标题清理成安全文件名，避免路径注入。"""
@@ -167,7 +112,18 @@ def read_note(title: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-TOOLS = [calculator, get_current_time, get_weather, save_note, list_notes, read_note]
+TOOLS = [
+    search_building_code,
+    calculate_concrete_volume,
+    calculate_brick_wall_quantity,
+    calculate_paint_area,
+    calculate_rebar_weight,
+    generate_cad_drawing,
+    calculator,
+    save_note,
+    list_notes,
+    read_note,
+]
 
 
 # ---------- 组装 Agent ----------
