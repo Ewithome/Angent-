@@ -19,3 +19,5 @@ knowledge/*.txt
 knowledge/*.md
 !knowledge/README.md
 outputs/cad/*.dxf
+outputs/eval_report.json
+eval/*.jsonl

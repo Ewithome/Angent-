@@ -5,7 +5,11 @@
 ## 项目特点
 
 - 使用 LangChain v1 最新的 `create_agent`，替代已弃用的 `langgraph.prebuilt.create_react_agent`
-- 本地规范知识库检索：支持 PDF、Word、Markdown、TXT，答案可溯源
+- 多格式文档清洗流水线：支持 PDF、Word、PPT、Markdown、TXT，含表格与幻灯片文本解析
+- 语义分块 + 轻量向量检索：TF-IDF 字符级 n-gram，适合中文文档
+- 混合检索：关键词 BM25 得分 + 向量余弦相似度加权
+- RAG 评测体系：Hit@1/3/5、MRR，输出评测报告
+- 伪标签生成：用 DeepSeek 从文档自动生成问答对，供检索效果调优
 - 建筑用量计算：混凝土、砖墙、涂料、钢筋
 - CAD 图纸生成：按房间参数输出 DXF 文件，可用 AutoCAD / LibreCAD 打开
 - SQLite 持久化多轮会话记忆
@@ -50,7 +54,7 @@ knowledge/
 └── 住宅设计规范.md
 ```
 
-支持 `.pdf`、`.docx`、`.md`、`.txt`。文件放入后无需重启，智能体会在下次检索时自动重建索引。规范原文只保存在本地，不会上传到 GitHub。
+支持 `.pdf`、`.docx`、`.pptx`、`.md`、`.txt`。文件放入后无需重启，智能体会在下次检索时自动重建索引。规范原文只保存在本地，不会上传到 GitHub。
 
 ## 运行
 
@@ -91,13 +95,37 @@ uvicorn api.main:app --reload --port 8000
 
 网页侧栏还提供：接口服务状态、知识库文件数量、已生成 DXF 图纸下载。
 
+## 检索与评测
+
+构建知识库索引并查看分块统计：
+
+```bash
+python scripts/build_knowledge_index.py
+```
+
+运行 RAG 检索效果评测：
+
+```bash
+python scripts/evaluate_rag.py
+```
+
+评测报告保存到 `outputs/eval_report.json`，评测问题集在 `eval/questions.json`，可按业务替换。
+
+使用 DeepSeek 从知识库文档生成伪标签问答对：
+
+```bash
+python scripts/generate_pseudo_labels.py --limit 5
+```
+
+生成的问答对保存到 `eval/pseudo_labels.jsonl`，可用于后续检索权重调优和嵌入模型领域适配。
+
 ## 测试
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-测试覆盖安全计算器、混凝土/砖墙/涂料/钢筋计算、CAD 图纸生成、规范知识库检索、API 健康检查与参数校验；配置真实 DeepSeek Key 时还会自动执行对话和会话管理接口测试。
+测试覆盖安全计算器、混凝土/砖墙/涂料/钢筋计算、CAD 图纸生成、规范知识库检索、PPT 解析、混合检索、API 健康检查与参数校验；配置真实 DeepSeek Key 时还会自动执行对话和会话管理接口测试。
 
 ## 接口说明
 
@@ -146,6 +174,11 @@ python -m unittest discover -s tests -v
 ├── knowledge_base.py       # 规范知识库检索
 ├── knowledge/              # 规范文件目录（只保存在本地）
 ├── outputs/cad/            # 生成的 DXF 图纸目录
+├── eval/                   # RAG 评测问题集与伪标签
+├── scripts/
+│   ├── build_knowledge_index.py
+│   ├── evaluate_rag.py
+│   └── generate_pseudo_labels.py
 ├── app.py                  # Streamlit 网页界面
 ├── cli.py                  # 命令行入口
 ├── api/                    # 企业级 FastAPI 接口层

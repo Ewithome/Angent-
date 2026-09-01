@@ -93,7 +93,12 @@ class KnowledgeBaseTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self._old_dir = knowledge_base.KNOWLEDGE_DIR
         knowledge_base.KNOWLEDGE_DIR = Path(self._tmp.name)
-        knowledge_base._index_cache = {"key": None, "chunks": []}
+        knowledge_base._index_cache = {
+            "key": None,
+            "chunks": [],
+            "vectorizer": None,
+            "matrix": None,
+        }
         sample = knowledge_base.KNOWLEDGE_DIR / "住宅设计规范.txt"
         sample.write_text(
             "楼梯踏步高度不应大于 0.175m，楼梯踏步宽度不应小于 0.26m。",
@@ -102,7 +107,12 @@ class KnowledgeBaseTests(unittest.TestCase):
 
     def tearDown(self):
         knowledge_base.KNOWLEDGE_DIR = self._old_dir
-        knowledge_base._index_cache = {"key": None, "chunks": []}
+        knowledge_base._index_cache = {
+            "key": None,
+            "chunks": [],
+            "vectorizer": None,
+            "matrix": None,
+        }
         self._tmp.cleanup()
 
     def test_search_building_code(self):
@@ -111,6 +121,25 @@ class KnowledgeBaseTests(unittest.TestCase):
         )
         self.assertIn("住宅设计规范.txt", result)
         self.assertIn("0.175m", result)
+
+    def test_hybrid_retrieve_returns_vector_score(self):
+        results = knowledge_base.retrieve("楼梯踏步高度", top_k=1)
+        self.assertEqual(len(results), 1)
+        self.assertIn("vector_score", results[0])
+
+    def test_pptx_parsing(self):
+        from pptx import Presentation
+
+        pptx_path = knowledge_base.KNOWLEDGE_DIR / "产品手册.pptx"
+        prs = Presentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        textbox = slide.shapes.add_textbox(100, 100, 300, 100)
+        textbox.text = "产品退换货流程：7 天内可申请退换"
+        prs.save(str(pptx_path))
+
+        results = knowledge_base.retrieve("退换货流程", top_k=1)
+        self.assertTrue(results)
+        self.assertIn("产品手册.pptx", results[0]["source"])
 
 
 class NoteTests(unittest.TestCase):
