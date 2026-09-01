@@ -54,6 +54,8 @@ knowledge/
 
 ## 运行
 
+最省事的方式：双击根目录的 `start_all.bat`，脚本会自动创建虚拟环境、安装依赖，并同时启动接口服务和网页服务。
+
 网页聊天界面：
 
 ```bash
@@ -86,6 +88,8 @@ uvicorn api.main:app --reload --port 8000
 .\scripts\run_api.ps1
 .\scripts\run_web.ps1
 ```
+
+网页侧栏还提供：接口服务状态、知识库文件数量、已生成 DXF 图纸下载。
 
 ## 测试
 
