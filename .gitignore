@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+agent_memory.db
+notes/*.md
+!notes/.gitkeep
+.DS_Store
+.streamlit/secrets.toml
