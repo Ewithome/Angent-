@@ -41,24 +41,29 @@ if "messages" not in st.session_state:
 st.title("建筑规范图集智能体")
 
 with st.sidebar:
-    st.header("会话")
+    st.header("设置")
+
+    st.caption("会话")
     new_thread_id = st.text_input("会话 ID", value=st.session_state.thread_id)
     if new_thread_id != st.session_state.thread_id:
         st.session_state.thread_id = new_thread_id
         st.session_state.messages = []
         st.rerun()
 
-    if st.button("新建会话", use_container_width=True):
-        st.session_state.thread_id = f"thread-{int(time.time())}"
-        st.session_state.messages = []
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("新建会话", use_container_width=True):
+            st.session_state.thread_id = f"thread-{int(time.time())}"
+            st.session_state.messages = []
+            st.rerun()
 
-    if st.button("清空当前会话", use_container_width=True):
-        clear_session(agent, st.session_state.thread_id)
-        st.rerun()
+    with col2:
+        if st.button("清空当前会话", use_container_width=True):
+            clear_session(agent, st.session_state.thread_id)
+            st.rerun()
 
     st.divider()
-    st.caption("内置工具")
+    st.caption("能力")
     st.write("- 规范检索：knowledge/ 知识库")
     st.write("- 用量计算：混凝土 / 砖墙 / 涂料 / 钢筋")
     st.write("- CAD 图纸：生成 DXF 平面图")
@@ -66,7 +71,7 @@ with st.sidebar:
     st.write("- 笔记管理：保存 / 列出 / 读取")
 
     st.divider()
-    st.caption("接口文档")
+    st.caption("开发")
     st.link_button("打开 FastAPI 接口文档", "http://localhost:8000/docs")
 
 # 展示历史消息
