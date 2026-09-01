@@ -166,6 +166,9 @@ TOOLS = [calculator, get_current_time, get_weather, save_note, list_notes, read_
 
 # ---------- 组装 Agent ----------
 def build_agent():
+    # Streamlit 长驻进程里环境变量不会自动刷新，每次构建时重新读取 .env
+    load_dotenv(override=True)
+
     api_key = os.getenv("DEEPSEEK_API_KEY")
     placeholder_keys = {"your_deepseek_api_key", "sk-在这里填写你的DeepSeekKey"}
     if not api_key or api_key in placeholder_keys:
