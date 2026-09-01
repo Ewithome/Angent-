@@ -3,6 +3,7 @@
 __pycache__/
 *.py[cod]
 *.log
+logs/
 agent_memory.db
 notes/*.md
 !notes/.gitkeep

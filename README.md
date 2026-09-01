@@ -9,6 +9,7 @@
 - SQLite checkpointer 持久化多轮会话记忆
 - 内置 6 个工具：数学计算、当前时间、真实天气、保存/列出/读取本地笔记
 - Streamlit 流式输出界面 + 命令行 REPL 两种使用方式
+- 企业级 FastAPI 接口层：版本化路由、统一响应、异常处理、请求追踪、日志、会话管理
 - 旧版 LangChain 0.2 demo 保留在 `legacy/`，方便对比学习
 
 ## 快速开始
@@ -65,6 +66,43 @@ python cli.py
 python cli.py --thread demo-1
 ```
 
+企业级接口服务：
+
+```bash
+uvicorn api.main:app --reload --port 8000
+```
+
+启动后访问接口文档：<http://localhost:8000/docs>
+
+## 接口说明
+
+所有接口都返回统一响应格式：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {},
+  "request_id": "生成的请求追踪ID"
+}
+```
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/v1/health` | 健康检查 |
+| POST | `/api/v1/chat` | 发送消息给智能体 |
+| GET | `/api/v1/sessions/{session_id}/messages` | 获取会话消息 |
+| DELETE | `/api/v1/sessions/{session_id}` | 删除会话 |
+
+对话接口请求示例：
+
+```json
+{
+  "message": "北京今天天气怎么样？",
+  "session_id": "demo-1"
+}
+```
+
 ## 试试这些问题
 
 - 帮我算一下 `(123 + 456) * 7 - 20 / 4`
@@ -81,6 +119,11 @@ python cli.py --thread demo-1
 ├── agent_core.py           # 工具、模型、记忆、create_agent 组装
 ├── app.py                  # Streamlit 网页界面
 ├── cli.py                  # 命令行入口
+├── api/                    # 企业级 FastAPI 接口层
+│   ├── main.py             # 应用入口与统一异常处理
+│   ├── config.py           # 环境配置
+│   ├── schemas.py          # 请求与响应模型
+│   └── routers/            # 健康检查、对话、会话路由
 ├── requirements.txt        # 新版依赖
 ├── requirements-legacy.txt # 旧版 demo 依赖
 ├── legacy/

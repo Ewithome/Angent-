@@ -167,7 +167,8 @@ TOOLS = [calculator, get_current_time, get_weather, save_note, list_notes, read_
 # ---------- 组装 Agent ----------
 def build_agent():
     api_key = os.getenv("DEEPSEEK_API_KEY")
-    if not api_key or "在这里" in api_key:
+    placeholder_keys = {"your_deepseek_api_key", "sk-在这里填写你的DeepSeekKey"}
+    if not api_key or api_key in placeholder_keys:
         raise ValueError("请在 .env 中配置 DEEPSEEK_API_KEY，参考 .env.example")
 
     model = ChatOpenAI(

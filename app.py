@@ -43,10 +43,14 @@ with st.sidebar:
 
     st.divider()
     st.caption("内置工具")
-    st.write("- calculator：安全数学计算")
-    st.write("- get_current_time：当前时间")
-    st.write("- get_weather：Open-Meteo 天气")
-    st.write("- save_note / list_notes / read_note：本地笔记")
+    st.write("- 计算器：安全数学计算")
+    st.write("- 当前时间：日期与时间")
+    st.write("- 天气查询：Open-Meteo 实时天气")
+    st.write("- 笔记管理：保存 / 列出 / 读取")
+
+    st.divider()
+    st.caption("接口文档")
+    st.link_button("打开 FastAPI 接口文档", "http://localhost:8000/docs")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
