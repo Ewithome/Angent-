@@ -104,6 +104,17 @@ def _tokenize(text: str) -> list[str]:
     return re.findall(r"[a-zA-Z0-9]+|[\u4e00-\u9fff]", text.lower())
 
 
+def get_knowledge_file_count() -> int:
+    """返回知识库中的规范文件数量，用于页面状态展示。"""
+    if not KNOWLEDGE_DIR.exists():
+        return 0
+    return sum(
+        1
+        for path in KNOWLEDGE_DIR.rglob("*")
+        if path.is_file() and path.suffix.lower() in _SUPPORTED_SUFFIXES
+    )
+
+
 @tool
 def search_building_code(query: str) -> str:
     """从本地建筑规范知识库检索相关条文。参数 query 是问题或关键词，例如“楼梯踏步高度”或“住宅层高”。"""
