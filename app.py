@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import time
 
+import requests
 import streamlit as st
 
 from agent_core import build_agent, get_final_answer, thread_config
+import building_tools
+import knowledge_base
 
 st.set_page_config(page_title="建筑规范图集智能体", page_icon="🏗️", layout="wide")
 
@@ -24,6 +27,18 @@ def clear_session(agent, thread_id: str) -> None:
         # 即使删除失败也先清空界面，方便用户继续使用
         pass
     st.session_state.messages = []
+
+
+def check_api_status() -> str:
+    """检测本地 FastAPI 服务是否可用。"""
+    try:
+        resp = requests.get(
+            "http://127.0.0.1:8000/api/v1/health",
+            timeout=2,
+        )
+        return "正常" if resp.status_code == 200 else f"异常（{resp.status_code}）"
+    except requests.RequestException:
+        return "未启动"
 
 
 try:
@@ -73,6 +88,25 @@ with st.sidebar:
     st.divider()
     st.caption("开发")
     st.link_button("打开 FastAPI 接口文档", "http://localhost:8000/docs")
+
+    st.divider()
+    st.caption("系统状态")
+    st.write(f"接口服务：{check_api_status()}")
+    st.write(f"知识库文件：{knowledge_base.get_knowledge_file_count()} 个")
+
+    st.divider()
+    st.caption("图纸输出")
+    cad_files = building_tools.list_cad_files()
+    if cad_files:
+        selected = st.selectbox("已生成图纸", [path.name for path in cad_files])
+        st.download_button(
+            "下载 DXF 图纸",
+            data=(building_tools.OUTPUT_DIR / selected).read_bytes(),
+            file_name=selected,
+            mime="application/dxf",
+        )
+    else:
+        st.write("暂无图纸，向智能体提问即可生成")
 
 # 展示历史消息
 for message in st.session_state.messages:
