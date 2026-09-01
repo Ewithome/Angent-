@@ -15,7 +15,11 @@ def get_agent():
     return build_agent()
 
 
-agent = get_agent()
+try:
+    agent = get_agent()
+except ValueError as exc:
+    st.error(f"配置错误：{exc}")
+    st.stop()
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = "default"
