@@ -40,6 +40,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):
+    # 为每个请求生成追踪 ID，并记录访问日志与耗时
     request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
     request.state.request_id = request_id
     start = datetime.now()
@@ -58,6 +59,7 @@ async def request_context(request: Request, call_next):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # 参数校验失败统一返回 422 + 业务错误码，方便前端统一处理
     request_id = getattr(request.state, "request_id", "")
     content = ApiResponse(
         code=42200,
@@ -70,6 +72,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    # 业务主动抛出的 HTTP 异常按原状态码返回，并保持统一响应结构
     request_id = getattr(request.state, "request_id", "")
     content = ApiResponse(
         code=exc.status_code,
@@ -81,6 +84,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
+    # 兜底异常：记录完整堆栈，避免把内部细节泄露给调用方
     request_id = getattr(request.state, "request_id", "")
     logger.exception("未处理异常: %s", exc)
     content = ApiResponse(

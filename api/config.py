@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # 应用与运行环境
     app_name: str = "DeepSeek 智能体 API"
     app_version: str = "1.0.0"
     api_prefix: str = "/api/v1"
@@ -22,6 +23,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
     log_level: str = "INFO"
 
+    # 自动读取根目录 .env，环境变量优先级高于文件
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -31,4 +33,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """缓存配置对象，避免每次请求都重复解析环境变量。"""
     return Settings()

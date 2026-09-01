@@ -21,6 +21,7 @@ load_dotenv()
 DB_PATH = os.getenv("AGENT_MEMORY_DB", "agent_memory.db")
 NOTES_DIR = Path(os.getenv("AGENT_NOTES_DIR", "notes"))
 
+# 智能体系统提示词：约束模型只依据真实工具结果回答，避免编造数据
 SYSTEM_PROMPT = """你是一个实用的个人助理智能体，名字叫“小助手”。
 你只能依据真实工具结果回答，不要编造计算结果、天气或笔记内容。
 规则：
@@ -44,6 +45,7 @@ _ALLOWED_OPS = {
 
 
 def _eval_expr(node):
+    """递归求值 AST 节点，只允许数字和四则运算，避免 eval 任意代码执行。"""
     if isinstance(node, ast.Expression):
         return _eval_expr(node.body)
     if isinstance(node, ast.BinOp):
@@ -59,6 +61,7 @@ def _eval_expr(node):
 def calculator(expression: str) -> str:
     """计算一个数学表达式，支持 + - * / ** % 和小括号，例如 "(1 + 2) * 3" 或 "2 ** 10"。参数是一个数学表达式字符串。"""
     try:
+        # 先用 ast 解析成语法树，再交给受限求值器执行
         return str(_eval_expr(ast.parse(expression, mode="eval")))
     except Exception as e:  # noqa: BLE001
         return f"计算出错: {e}"
@@ -97,6 +100,7 @@ _WEATHER_CODES = {
 def get_weather(city: str) -> str:
     """查询指定城市的实时天气。参数是城市名，例如 "北京"、"上海"、"London"。"""
     try:
+        # 第一步：把城市名解析成经纬度
         geo = requests.get(
             "https://geocoding-api.open-meteo.com/v1/search",
             params={"name": city, "count": 1, "language": "zh", "format": "json"},
@@ -108,6 +112,7 @@ def get_weather(city: str) -> str:
 
         place = results[0]
         name = place.get("name", city)
+        # 第二步：用经纬度请求实时天气
         forecast = requests.get(
             "https://api.open-meteo.com/v1/forecast",
             params={
@@ -129,6 +134,7 @@ def get_weather(city: str) -> str:
 
 # ---------- 本地笔记 ----------
 def _safe_title(title: str) -> str:
+    """把用户提供的标题清理成安全文件名，避免路径注入。"""
     cleaned = re.sub(r'[\\/:*?"<>|]+', "_", title.strip())
     return cleaned or "未命名"
 
@@ -181,10 +187,12 @@ def build_agent():
         temperature=float(os.getenv("DEEPSEEK_TEMPERATURE", "0")),
     )
 
+    # SQLite 检查点负责持久化多轮会话记忆，check_same_thread=False 适配 Web 线程模型
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     checkpointer = SqliteSaver(conn)
     checkpointer.setup()
 
+    # LangChain v1 标准 Agent 工厂：内部就是 model -> tools -> model 的循环
     return create_agent(
         model=model,
         tools=TOOLS,
@@ -195,6 +203,7 @@ def build_agent():
 
 
 def thread_config(thread_id: str) -> dict:
+    """构造 LangGraph 线程配置，thread_id 用于隔离不同会话的记忆。"""
     return {"configurable": {"thread_id": thread_id}}
 
 

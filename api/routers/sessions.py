@@ -19,6 +19,7 @@ def get_session_messages(
     request: Request,
     limit: int = Query(default=50, ge=1, le=200, description="返回最近 N 条消息"),
 ) -> ApiResponse[SessionData]:
+    # 限制条数避免返回过长历史，接口只暴露用户与助手的可见消息
     messages = list_session_messages(session_id, limit)
     data = SessionData(session_id=session_id, messages=messages)
     return ApiResponse[SessionData](data=data, request_id=request.state.request_id)

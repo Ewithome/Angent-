@@ -11,6 +11,7 @@ from api.config import get_settings
 def setup_logging() -> None:
     settings = get_settings()
     root = logging.getLogger()
+    # 防止 uvicorn reload 等场景重复挂载文件日志
     if any(isinstance(handler, RotatingFileHandler) for handler in root.handlers):
         return
 
@@ -23,6 +24,7 @@ def setup_logging() -> None:
     console.setFormatter(formatter)
     root.addHandler(console)
 
+    # 滚动文件日志：单文件最大 5MB，保留 5 个备份
     log_dir = Path("logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     file_handler = RotatingFileHandler(

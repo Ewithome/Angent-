@@ -9,6 +9,7 @@ T = TypeVar("T")
 
 
 class ApiResponse(BaseModel, Generic[T]):
+    """统一响应包装：业务调用方只依赖 code/message/request_id 即可。"""
     code: int = Field(default=0, description="业务状态码，0 表示成功")
     message: str = Field(default="success", description="提示信息")
     data: T | None = None
@@ -24,6 +25,7 @@ class HealthData(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    """聊天请求体：message 必填，session_id 缺省使用 default 会话。"""
     message: str = Field(
         ...,
         min_length=1,

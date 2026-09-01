@@ -7,6 +7,7 @@ _agent = None
 
 
 def get_agent():
+    """惰性单例：API 进程内只构建一次 Agent，复用数据库连接。"""
     global _agent
     if _agent is None:
         _agent = build_agent()
@@ -14,6 +15,7 @@ def get_agent():
 
 
 def run_chat(message: str, session_id: str = "default") -> str:
+    """执行一轮对话，返回最终文本回复。"""
     agent = get_agent()
     result = agent.invoke(
         {"messages": [{"role": "user", "content": message}]},
@@ -26,6 +28,7 @@ def list_session_messages(
     session_id: str,
     limit: int = 50,
 ) -> list[dict[str, str]]:
+    """读取指定会话最近的用户/助手消息，供接口对外展示。"""
     agent = get_agent()
     snapshot = agent.get_state(thread_config(session_id))
     messages = snapshot.values.get("messages", [])
@@ -48,6 +51,7 @@ def list_session_messages(
 
 
 def delete_session(session_id: str) -> None:
+    """删除指定会话的持久化记忆。"""
     agent = get_agent()
     checkpointer = agent.checkpointer
     if hasattr(checkpointer, "delete_thread"):

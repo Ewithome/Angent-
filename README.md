@@ -74,6 +74,23 @@ uvicorn api.main:app --reload --port 8000
 
 启动后访问接口文档：<http://localhost:8000/docs>
 
+一键启动脚本（PowerShell）：
+
+```powershell
+.\scripts\run_api.ps1
+.\scripts\run_web.ps1
+```
+
+## 测试
+
+运行全部测试：
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+测试覆盖安全计算器、笔记工具、API 健康检查、参数校验；配置了真实 DeepSeek Key 时还会自动执行对话和会话管理接口测试。
+
 ## 接口说明
 
 所有接口都返回统一响应格式：
@@ -124,6 +141,8 @@ uvicorn api.main:app --reload --port 8000
 │   ├── config.py           # 环境配置
 │   ├── schemas.py          # 请求与响应模型
 │   └── routers/            # 健康检查、对话、会话路由
+├── tests/                  # 工具与接口自动化测试
+├── scripts/                # 一键启动脚本
 ├── requirements.txt        # 新版依赖
 ├── requirements-legacy.txt # 旧版 demo 依赖
 ├── legacy/
