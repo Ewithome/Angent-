@@ -14,6 +14,13 @@ _STEEL_DENSITY = 7850  # 钢材密度 kg/m3
 _BRICKS_PER_CUBIC_METER = 512  # 标准砖含灰缝估算值
 
 
+def list_cad_files() -> list[Path]:
+    """返回已生成的 DXF 文件列表，供页面展示和下载。"""
+    if not OUTPUT_DIR.exists():
+        return []
+    return sorted(OUTPUT_DIR.glob("*.dxf"))
+
+
 @tool
 def calculate_concrete_volume(length_m: float, width_m: float, thickness_m: float) -> str:
     """计算混凝土用量。参数单位均为米，例如长10米、宽5米、厚0.2米。"""
