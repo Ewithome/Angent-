@@ -64,6 +64,20 @@ knowledge/
 
 最省事的方式：双击根目录的 `start_all.bat`，脚本会自动创建虚拟环境、安装依赖，并同时启动接口服务和网页服务。
 
+## 一键打包发布
+
+双击根目录 `一键打包发布.bat`，会完成：
+
+1. 只收集 Git 已跟踪文件，自动跳过 `.env`、本地知识库、Harness home、自定义技能等敏感内容。
+2. 生成完整运行目录与 `enterprise-knowledge-agent-<版本>.zip`，保存到 `dist/`。
+3. 推送代码与 `v<版本>` 标签，并创建 GitHub Release、上传 zip 安装包。
+
+打包发布需要先配置好 GitHub 远程仓库，并让本机 Git 可以推送；Release 使用 Git 凭据管理器中的 GitHub token，不会写入代码或日志。若只想在本地生成安装包，可运行：
+
+```bash
+python scripts/package_release.py
+```
+
 网页聊天界面：
 
 ```bash

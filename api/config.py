@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # 应用与运行环境
     app_name: str = "建筑规范图集智能体 API"
-    app_version: str = "1.0.0"
+    app_version: str = "1.1.0"
     api_prefix: str = "/api/v1"
     environment: str = "development"
 
