@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
-import sys
 import threading
 from pathlib import Path
 
 from dotenv import load_dotenv
 from deepseek_harness import DeepSeekHarness, DeepSeekHarnessConfig
+
+from harness.mcp_config import McpServerConfig, get_mcp_store, list_enabled_servers
 
 # 项目根目录：MCP 工具子进程需要在这里启动，才能导入 knowledge_base 等模块
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -54,23 +56,19 @@ def _write_mcp_patch() -> Path:
     generated_dir.mkdir(parents=True, exist_ok=True)
     patch_path = generated_dir / "enterprise-building.patch.yml"
 
-    python_path = json.dumps(str(Path(sys.executable).resolve()))
-    args = json.dumps(["-m", "harness.mcp_server"])
-    cwd = json.dumps(str(PROJECT_ROOT))
-    patch = f"""# 企业知识库 MCP 工具：由 harness/agent.py 自动生成，不要手工提交
-- insert:
-    - id: building-knowledge-mcp
-      name: '@deepseek-ai/dsh-mcp-client'
-      config:
-        serverName: building
-        transport: stdio
-        command: {python_path}
-        args: {args}
-        cwd: {cwd}
-        toolCallTimeoutMs: 120000
-        failOnStartupError: true
+    patch_lines = [
+        "# MCP 服务配置由 harness/agent.py 自动生成，不要手工提交",
+    ]
+    for server in list_enabled_servers():
+        patch_lines.extend(_mcp_server_patch_rows(server))
 
-# 关闭最小 profile 自带的不受限终端/编辑器，避免模型绕过领域工具直接改文件
+    patch_lines.extend(
+        [
+            "",
+            "# 关闭最小 profile 自带的不受限终端/编辑器，避免模型绕过领域工具直接改文件",
+        ]
+    )
+    patch = "\n".join(patch_lines) + """
 - id: persistent-bash
   disabled: true
 - id: persistent-pwsh
@@ -82,6 +80,37 @@ def _write_mcp_patch() -> Path:
     return patch_path
 
 
+def _mcp_server_patch_rows(server: McpServerConfig) -> list[str]:
+    """把单个 MCP 服务配置转换成 profile patch 的 YAML 行。"""
+    config: dict = {
+        "serverName": server.name,
+        "transport": server.transport,
+        "toolCallTimeoutMs": server.tool_call_timeout_ms,
+        "failOnStartupError": server.fail_on_startup_error,
+    }
+    if server.transport == "stdio":
+        if server.command:
+            config["command"] = server.command
+        if server.args:
+            config["args"] = server.args
+        if server.env:
+            config["env"] = server.env
+        if server.cwd:
+            config["cwd"] = server.cwd
+    else:
+        if server.url:
+            config["url"] = server.url
+        if server.headers:
+            config["headers"] = server.headers
+
+    return [
+        "- insert:",
+        f"    - id: mcp-{server.name}",
+        "      name: '@deepseek-ai/dsh-mcp-client'",
+        f"      config: {json.dumps(config, ensure_ascii=False)}",
+    ]
+
+
 def _api_key() -> str:
     """读取真实 DeepSeek Key；本地 .env 不会被提交到 Git。"""
     key = os.getenv("DEEPSEEK_API_KEY", "")
@@ -89,6 +118,14 @@ def _api_key() -> str:
     if not key or key in placeholders:
         raise ValueError("请在 .env 中配置 DEEPSEEK_API_KEY，参考 .env.example")
     return key
+
+
+def _mcp_config_signature() -> str:
+    """用配置文件哈希判断 MCP 服务是否变化，用于自动重建 Harness 运行时。"""
+    path = get_mcp_store().path
+    if not path.exists():
+        return "empty"
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def build_runtime() -> DeepSeekHarness:
@@ -125,13 +162,24 @@ class HarnessGateway:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._runtime: DeepSeekHarness | None = None
+        self._mcp_signature: str | None = None
 
     def _ensure_runtime(self) -> DeepSeekHarness:
         with self._lock:
+            signature = _mcp_config_signature()
+            if (
+                self._runtime is not None
+                and self._mcp_signature is not None
+                and signature != self._mcp_signature
+            ):
+                # 用户新增/修改 MCP 服务后自动重建运行时，使新工具立即生效
+                self._runtime.close()
+                self._runtime = None
             if self._runtime is None:
                 # 启动较慢且包含真实模型调用，因此只初始化一次
                 self._runtime = build_runtime()
                 self._runtime.start()
+                self._mcp_signature = signature
             return self._runtime
 
     def run(self, message: str, session_id: str) -> str:
@@ -153,6 +201,15 @@ class HarnessGateway:
                     self._runtime.close()
                 finally:
                     self._runtime = None
+            self._mcp_signature = None
+
+    def reload_mcp_servers(self) -> None:
+        """关闭当前运行时；下一次对话会自动按最新 MCP 配置重新启动。"""
+        with self._lock:
+            if self._runtime is not None:
+                self._runtime.close()
+                self._runtime = None
+            self._mcp_signature = None
 
     @staticmethod
     def delete_session(session_id: str) -> bool:

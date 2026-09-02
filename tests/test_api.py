@@ -48,6 +48,45 @@ class BasicApiTests(unittest.TestCase):
         self.assertEqual(resp.json()["code"], 42200)
 
 
+class McpApiTests(unittest.TestCase):
+    """验证 MCP 服务配置接口；测试结束后清理临时服务。"""
+
+    TEST_NAME = "api-mcp-test"
+
+    def test_mcp_crud(self):
+        listed = client.get("/api/v1/mcp/servers")
+        self.assertEqual(listed.status_code, 200)
+        names = [server["name"] for server in listed.json()["data"]]
+        self.assertIn("building", names)
+
+        try:
+            created = client.post(
+                "/api/v1/mcp/servers",
+                json={
+                    "name": self.TEST_NAME,
+                    "label": "接口测试服务",
+                    "command": "python",
+                    "args": ["-m", "test_mcp"],
+                },
+            )
+            self.assertEqual(created.status_code, 200)
+            self.assertEqual(created.json()["code"], 0)
+
+            updated = client.put(
+                f"/api/v1/mcp/servers/{self.TEST_NAME}",
+                json={
+                    "name": self.TEST_NAME,
+                    "label": "接口测试服务-已更新",
+                    "command": "node",
+                },
+            )
+            self.assertEqual(updated.status_code, 200)
+            self.assertEqual(updated.json()["data"]["command"], "node")
+        finally:
+            deleted = client.delete(f"/api/v1/mcp/servers/{self.TEST_NAME}")
+            self.assertEqual(deleted.status_code, 200)
+
+
 @unittest.skipUnless(_has_real_key(), "未配置真实 DeepSeek Key，跳过对话接口测试")
 class ChatApiTests(unittest.TestCase):
     """验证真实对话、会话查询与删除。"""

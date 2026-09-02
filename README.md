@@ -6,6 +6,7 @@
 
 - 使用 LangChain v1 最新的 `create_agent`，替代已弃用的 `langgraph.prebuilt.create_react_agent`
 - 可选接入 DeepSeek 官方 Agent Harness：通过内置 MCP 客户端把知识库、用量计算、CAD 工具注册给 Harness
+- MCP 服务可配置：网页可新增/修改/删除 stdio 或 streamable-http 外部 MCP 服务，配置实时写入 `.mcp_servers.json`
 - Harness 模式关闭默认终端/编辑器，只暴露受控领域工具，会话持久化到项目 `.harness_home/`
 - 多格式文档清洗流水线：支持 PDF、Word、PPT、Markdown、TXT，含表格与幻灯片文本解析
 - 语义分块 + 轻量向量检索：TF-IDF 字符级 n-gram，适合中文文档
@@ -110,6 +111,22 @@ uvicorn api.main:app --reload --port 8000
 
 首次切换 Agent Harness 时需要初始化本地 Harness home 并连接 MCP 工具服务，几秒后即可对话。
 
+## MCP 服务配置
+
+侧栏选择 `MCP 服务配置`，可管理 Agent Harness 能调用的 MCP 服务：
+
+- 内置 `building` 服务：企业知识库、用量计算、CAD 图纸与项目纪要，不可删除
+- 自定义 `stdio` 服务：配置可执行程序、启动参数、工作目录与环境变量
+- 自定义 `streamable-http` 服务：配置端点地址与请求头
+
+配置保存在项目根目录 `.mcp_servers.json`，该文件已加入 `.gitignore`，不会把第三方密钥上传到 GitHub。可直接复制 `mcp_servers.example.json` 查看 JSON 字段格式。
+
+保存或删除服务后，当前进程内的 Agent Harness 会自动标记为需要重新加载，下一次对话使用新工具列表。也可以通过接口立即刷新：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/mcp/servers/reload
+```
+
 ## Agent Harness 接入说明
 
 Agent Harness 采用“一切皆插件”架构。本项目保留 LangChain 作为默认业务链路，并新增 `harness/` 接入层：
@@ -117,9 +134,12 @@ Agent Harness 采用“一切皆插件”架构。本项目保留 LangChain 作�
 ```text
 harness/
 ├── agent.py       # Harness 配置、patch 生成、进程级复用、对话执行
-├── mcp_server.py  # 把企业知识库与建筑工具暴露为 MCP 工具
+├── mcp_config.py  # MCP 服务配置模型与本地 JSON 存储
+├── mcp_server.py  # 内置知识库与建筑工具 MCP 服务
 └── __init__.py
 ```
+
+自定义 MCP 配置示例见 `mcp_servers.example.json`。
 
 运行逻辑：
 
@@ -135,6 +155,7 @@ HARNESS_MODEL=deepseek-chat
 HARNESS_MAX_TOKENS=16384
 HARNESS_HOME=.harness_home
 HARNESS_WORKSPACE=.harness_workspace
+MCP_CONFIG_FILE=.mcp_servers.json
 ```
 
 真实 `DEEPSEEK_API_KEY` 仍只保存在本地 `.env`，不会上传到 GitHub。
@@ -190,6 +211,11 @@ python -m unittest discover -s tests -v
 | POST | `/api/v1/chat` | 发送消息给智能体（body 可选 `engine`：`langchain` / `harness`） |
 | GET | `/api/v1/sessions/{session_id}/messages` | 获取会话消息 |
 | DELETE | `/api/v1/sessions/{session_id}` | 删除会话 |
+| GET | `/api/v1/mcp/servers` | 获取 MCP 服务列表 |
+| POST | `/api/v1/mcp/servers` | 新增 MCP 服务 |
+| PUT | `/api/v1/mcp/servers/{name}` | 修改 MCP 服务 |
+| DELETE | `/api/v1/mcp/servers/{name}` | 删除 MCP 服务 |
+| POST | `/api/v1/mcp/servers/reload` | 让 Agent Harness 下次对话重新加载 MCP 服务 |
 
 对话接口请求示例：
 
