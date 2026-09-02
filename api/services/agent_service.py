@@ -14,8 +14,17 @@ def get_agent():
     return _agent
 
 
-def run_chat(message: str, session_id: str = "default") -> str:
-    """执行一轮对话，返回最终文本回复。"""
+def run_chat(
+    message: str,
+    session_id: str = "default",
+    engine: str = "langchain",
+) -> str:
+    """执行一轮对话，engine 支持 langchain 或 harness。"""
+    if engine == "harness":
+        from harness.agent import run_harness_chat
+
+        return run_harness_chat(message, session_id)
+
     agent = get_agent()
     result = agent.invoke(
         {"messages": [{"role": "user", "content": message}]},

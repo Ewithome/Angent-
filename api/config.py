@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     agent_memory_db: str = "agent_memory.db"
     agent_notes_dir: str = "notes"
 
+    # DeepSeek Agent Harness 配置
+    harness_home: str = ".harness_home"
+    harness_workspace: str = ".harness_workspace"
+    harness_model: str | None = None
+    harness_max_tokens: int = 16384
+    harness_timeout_seconds: int = 300
+    harness_system_prompt: str = ""
+
     cors_origins: list[str] = ["*"]
     log_level: str = "INFO"
 

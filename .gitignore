@@ -9,6 +9,8 @@ logs/
 agent_memory.db
 agent_memory.db-shm
 agent_memory.db-wal
+.harness_home/
+.harness_workspace/
 notes/*.md
 !notes/.gitkeep
 .DS_Store

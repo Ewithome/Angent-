@@ -1,7 +1,7 @@
 """API 请求与响应模型。"""
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -31,6 +31,10 @@ class ChatRequest(BaseModel):
         min_length=1,
         max_length=4000,
         description="用户发给智能体的消息",
+    )
+    engine: Literal["langchain", "harness"] = Field(
+        default="langchain",
+        description="运行引擎：langchain 为现有 LangChain 智能体，harness 为 DeepSeek Agent Harness",
     )
     session_id: str | None = Field(
         default=None,

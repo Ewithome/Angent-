@@ -22,7 +22,7 @@ settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
-    description="基于 LangChain v1 + DeepSeek 的建筑规范图集智能体 API",
+    description="企业知识库智能体 API：LangChain v1 + DeepSeek Agent Harness 双引擎",
     version=settings.app_version,
     docs_url="/docs",
     redoc_url="/redoc",

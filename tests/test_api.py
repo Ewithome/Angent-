@@ -5,8 +5,11 @@ import os
 import unittest
 
 from fastapi.testclient import TestClient
+from dotenv import load_dotenv
 
 from api.main import app
+
+load_dotenv()
 
 client = TestClient(app)
 
@@ -33,6 +36,14 @@ class BasicApiTests(unittest.TestCase):
 
     def test_validation_error(self):
         resp = client.post("/api/v1/chat", json={"message": ""})
+        self.assertEqual(resp.status_code, 422)
+        self.assertEqual(resp.json()["code"], 42200)
+
+    def test_engine_validation_error(self):
+        resp = client.post(
+            "/api/v1/chat",
+            json={"message": "你好", "engine": "not-exist"},
+        )
         self.assertEqual(resp.status_code, 422)
         self.assertEqual(resp.json()["code"], 42200)
 

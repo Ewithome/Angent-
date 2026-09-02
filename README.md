@@ -1,10 +1,12 @@
 # 建筑规范图集智能体
 
-基于 **LangChain v1 + LangGraph v1 + DeepSeek** 的建筑规范方向智能体，可以回答客户关于规范标准的问题、计算工程用量，并生成建筑平面示意 CAD 图纸。
+基于 **LangChain v1 + DeepSeek Agent Harness + DeepSeek** 的企业内部知识库智能体，可以回答规范标准与制度流程问题、计算工程用量，并生成建筑平面示意 CAD 图纸。
 
 ## 项目特点
 
 - 使用 LangChain v1 最新的 `create_agent`，替代已弃用的 `langgraph.prebuilt.create_react_agent`
+- 可选接入 DeepSeek 官方 Agent Harness：通过内置 MCP 客户端把知识库、用量计算、CAD 工具注册给 Harness
+- Harness 模式关闭默认终端/编辑器，只暴露受控领域工具，会话持久化到项目 `.harness_home/`
 - 多格式文档清洗流水线：支持 PDF、Word、PPT、Markdown、TXT，含表格与幻灯片文本解析
 - 语义分块 + 轻量向量检索：TF-IDF 字符级 n-gram，适合中文文档
 - 混合检索：关键词 BM25 得分 + 向量余弦相似度加权
@@ -18,7 +20,7 @@
 
 ## 快速开始
 
-要求 Python 3.9+，建议 3.12。
+要求 Python 3.10+，建议 3.12（Agent Harness Python SDK 要求 3.10+）。
 
 ```bash
 git clone https://github.com/Ewithome/Angent-.git
@@ -78,6 +80,12 @@ python cli.py
 python cli.py --thread demo-1
 ```
 
+命令行切换 Agent Harness 引擎：
+
+```bash
+python cli.py --engine harness --thread demo-2
+```
+
 企业级接口服务：
 
 ```bash
@@ -94,6 +102,42 @@ uvicorn api.main:app --reload --port 8000
 ```
 
 网页侧栏还提供：接口服务状态、知识库文件数量、已生成 DXF 图纸下载。
+
+网页侧栏顶部可选择运行引擎：
+
+- `LangChain 智能体`：使用现有 `create_agent` 稳定链路
+- `Agent Harness`：启动 DeepSeek 官方 Harness，工具名形如 `mcp__building__search_knowledge`
+
+首次切换 Agent Harness 时需要初始化本地 Harness home 并连接 MCP 工具服务，几秒后即可对话。
+
+## Agent Harness 接入说明
+
+Agent Harness 采用“一切皆插件”架构。本项目保留 LangChain 作为默认业务链路，并新增 `harness/` 接入层：
+
+```text
+harness/
+├── agent.py       # Harness 配置、patch 生成、进程级复用、对话执行
+├── mcp_server.py  # 把企业知识库与建筑工具暴露为 MCP 工具
+└── __init__.py
+```
+
+运行逻辑：
+
+1. `run_harness_chat()` 首次调用时创建隔离的 `HARNESS_HOME` 与 `HARNESS_WORKSPACE`。
+2. 自动生成一次启动专用 patch，使用当前 Python 解释器启动 `harness.mcp_server`。
+3. Harness 内置 MCP 客户端发现工具后，模型可直接调用 `mcp__building__search_knowledge`、`mcp__building__generate_cad_drawing` 等工具。
+4. 为降低任意命令执行风险，企业模式会禁用 `sdk-minimal` 自带的持久终端与文件编辑器。
+
+可在 `.env` 中调整 Harness 参数：
+
+```dotenv
+HARNESS_MODEL=deepseek-chat
+HARNESS_MAX_TOKENS=16384
+HARNESS_HOME=.harness_home
+HARNESS_WORKSPACE=.harness_workspace
+```
+
+真实 `DEEPSEEK_API_KEY` 仍只保存在本地 `.env`，不会上传到 GitHub。
 
 ## 检索与评测
 
@@ -143,7 +187,7 @@ python -m unittest discover -s tests -v
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/v1/health` | 健康检查 |
-| POST | `/api/v1/chat` | 发送消息给智能体 |
+| POST | `/api/v1/chat` | 发送消息给智能体（body 可选 `engine`：`langchain` / `harness`） |
 | GET | `/api/v1/sessions/{session_id}/messages` | 获取会话消息 |
 | DELETE | `/api/v1/sessions/{session_id}` | 删除会话 |
 
@@ -152,7 +196,8 @@ python -m unittest discover -s tests -v
 ```json
 {
   "message": "住宅楼梯踏步高度有什么要求？再帮我算 10m×5m×0.2m 的混凝土用量",
-  "session_id": "building-demo"
+  "session_id": "building-demo",
+  "engine": "harness"
 }
 ```
 
@@ -187,6 +232,7 @@ python -m unittest discover -s tests -v
 │   ├── schemas.py          # 请求与响应模型
 │   └── routers/            # 健康检查、对话、会话路由
 ├── tests/                  # 工具与接口自动化测试
+├── harness/                # Agent Harness 接入与 MCP 工具服务
 ├── scripts/                # 一键启动脚本
 ├── requirements.txt        # 新版依赖
 └── .env.example            # 环境变量模板
@@ -203,3 +249,5 @@ python -m unittest discover -s tests -v
 - 报 `DEEPSEEK_API_KEY` 错误：检查 `.env` 是否已创建且填写正确。
 - 检索不到规范内容：确认文件已放入 `knowledge/`，且格式为 PDF、Word、Markdown 或 TXT。
 - 生成的 DXF 打不开：用 AutoCAD、LibreCAD 或支持 DXF 的看图软件打开 `outputs/cad/` 下的文件。
+- Agent Harness 报插件加载失败：确认已重新执行 `pip install -r requirements.txt`，且启动目录是项目根目录；首次运行会自动生成 `.harness_home/`。
+- 提示 Key 配置错误：检查 `.env` 是否存在且 `DEEPSEEK_API_KEY` 已填写真实值；Harness 与 LangChain 共用同一个 Key。
