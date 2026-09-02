@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.config import get_settings
@@ -103,7 +103,10 @@ app.include_router(skills.router, prefix=settings.api_prefix)
 
 
 @app.get("/", tags=["系统"])
-def root() -> ApiResponse[dict]:
+def root(request: Request):
+    # 浏览器直接访问接口根地址时跳到 Streamlit 页面；API 客户端仍返回 JSON
+    if "text/html" in request.headers.get("accept", "").lower():
+        return RedirectResponse(url="http://localhost:8501", status_code=307)
     return ApiResponse[dict](
         data={
             "service": settings.app_name,

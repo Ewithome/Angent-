@@ -29,6 +29,15 @@ class BasicApiTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["code"], 0)
 
+    def test_root_html_redirects_to_web(self):
+        resp = client.get(
+            "/",
+            headers={"accept": "text/html"},
+            follow_redirects=False,
+        )
+        self.assertEqual(resp.status_code, 307)
+        self.assertIn("8501", resp.headers["location"])
+
     def test_health(self):
         resp = client.get("/api/v1/health")
         self.assertEqual(resp.status_code, 200)
