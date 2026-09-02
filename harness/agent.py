@@ -12,14 +12,20 @@ from deepseek_harness import DeepSeekHarness, DeepSeekHarnessConfig
 
 # 项目根目录：MCP 工具子进程需要在这里启动，才能导入 knowledge_base 等模块
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# 独立入口直接 import 时也先读取根目录 .env，避免配置延迟生效
+load_dotenv(PROJECT_ROOT / ".env", override=True)
+
+
+def _project_path(name: str, default_name: str) -> Path:
+    """读取环境变量目录，相对路径固定解析到项目根目录。"""
+    raw = os.getenv(name)
+    path = Path(raw) if raw else PROJECT_ROOT / default_name
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
 
 # 默认使用项目内隔离目录；官方建议 Harness home 与 workspace 都保持独立
-HARNESS_HOME = Path(
-    os.getenv("HARNESS_HOME", PROJECT_ROOT / ".harness_home")
-).resolve()
-HARNESS_WORKSPACE = Path(
-    os.getenv("HARNESS_WORKSPACE", PROJECT_ROOT / ".harness_workspace")
-).resolve()
+HARNESS_HOME = _project_path("HARNESS_HOME", ".harness_home").resolve()
+HARNESS_WORKSPACE = _project_path("HARNESS_WORKSPACE", ".harness_workspace").resolve()
 HARNESS_PROFILE = os.getenv("HARNESS_PROFILE", "sdk-minimal")
 HARNESS_MODEL = os.getenv(
     "HARNESS_MODEL", os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
@@ -35,16 +41,8 @@ SYSTEM_PROMPT = """你是一名企业内部知识库智能体，名叫“规范�
 2. 知识库没有依据时，明确说明当前知识库未收录，绝不编造条文编号、强制条款或业务流程。
 3. 混凝土、砖墙、涂料、钢筋用量计算分别调用对应工具，并向用户说明计算过程。
 4. 生成 CAD 图时调用 mcp__building__generate_cad_drawing，并告知 DXF 文件位置。
-5. 项目纪要使用 mcp__building__save_project_note / list_project_notes / read_project_notes。
+5. 项目纪要使用 mcp__building__save_project_note / mcp__building__list_project_notes / mcp__building__read_project_note。
 6. 所有回答使用简体中文，面向企业内部用户，专业、准确、简洁。"""
-
-
-def _resolve_path(value: str | Path, default: Path) -> Path:
-    """把相对路径解析到项目根目录下，避免服务启动目录不同导致文件漂移。"""
-    path = Path(value)
-    if not path.is_absolute():
-        path = PROJECT_ROOT / path
-    return path.resolve()
 
 
 def _write_mcp_patch() -> Path:

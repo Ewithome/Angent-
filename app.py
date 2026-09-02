@@ -94,6 +94,8 @@ with st.sidebar:
         if st.button("清空当前会话", use_container_width=True):
             if engine == "Agent Harness":
                 clear_harness_session(st.session_state.thread_id)
+                # Harness 内存会话无法直接截断，清空后换新会话 ID 保证完全隔离
+                st.session_state.thread_id = f"thread-{int(time.time())}"
             else:
                 clear_session(agent, st.session_state.thread_id)
             st.rerun()
