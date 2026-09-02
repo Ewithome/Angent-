@@ -7,9 +7,9 @@ echo   一键打包发布
 echo ============================================
 
 if exist ".venv\Scripts\python.exe" (
-    ".venv\Scripts\python.exe" scripts\package_release.py --publish %*
+    ".venv\Scripts\python.exe" scripts\package_release.py --publish --auto-commit %*
 ) else (
-    python scripts\package_release.py --publish %*
+    python scripts\package_release.py --publish --auto-commit %*
 )
 
 if errorlevel 1 (

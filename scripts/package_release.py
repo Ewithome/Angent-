@@ -286,11 +286,22 @@ def main() -> None:
         action="store_true",
         help="打包后创建并发布 GitHub Release",
     )
+    parser.add_argument(
+        "--auto-commit",
+        action="store_true",
+        help="发布前自动提交当前工作区改动，实现真正的一键发布",
+    )
     args = parser.parse_args()
 
     version = args.version or _current_version()
     if not re.match(r"^\d+\.\d+\.\d+$", version):
         raise SystemExit(f"版本号格式不正确：{version}")
+
+    if args.publish:
+        if args.auto_commit:
+            _auto_commit(version)
+        elif _git("status", "--porcelain").stdout.strip():
+            raise SystemExit("工作区还有未提交改动，请先提交代码再执行一键发布")
 
     print(f"开始打包 v{version}...", flush=True)
     build_dir = _copy_tracked_files(DIST_DIR / f"enterprise-knowledge-agent-{version}", version)
@@ -298,11 +309,19 @@ def main() -> None:
     print(f"打包完成：{zip_path}", flush=True)
 
     if args.publish:
-        if _git("status", "--porcelain").stdout.strip():
-            raise SystemExit("工作区还有未提交改动，请先提交代码再执行一键发布")
         print("准备发布 GitHub Release...", flush=True)
         url = _publish_github(zip_path, version)
         print(f"GitHub Release 已发布：{url}", flush=True)
+
+
+def _auto_commit(version: str) -> None:
+    """自动提交工作区改动，保证发布的 zip 与 GitHub 代码完全一致。"""
+    status = _git("status", "--porcelain").stdout.strip()
+    if not status:
+        return
+    print(f"检测到未提交改动，正在自动提交 v{version} 发布内容...", flush=True)
+    _git("add", "-A")
+    _git("commit", "-m", f"chore: prepare release v{version}")
 
 
 if __name__ == "__main__":
