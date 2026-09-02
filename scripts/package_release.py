@@ -210,6 +210,19 @@ def _github_request(
         raise RuntimeError(f"GitHub API 失败 {exc.code}：{detail[:800]}") from exc
 
 
+def _find_existing_release(repo: str, tag: str, token: str) -> dict | None:
+    try:
+        return _github_request(
+            "GET",
+            f"https://api.github.com/repos/{repo}/releases/tags/{tag}",
+            token,
+        )
+    except RuntimeError as exc:
+        if "GitHub API 失败 404" in str(exc):
+            return None
+        raise
+
+
 def _publish_github(zip_path: Path, version: str) -> str:
     print("正在推送代码和版本标签...", flush=True)
     repo = _github_repo()
@@ -230,15 +243,30 @@ def _publish_github(zip_path: Path, version: str) -> str:
         "target_commitish": "main",
         "prerelease": False,
     }
-    release = _github_request(
-        "POST",
-        f"https://api.github.com/repos/{repo}/releases",
-        token,
-        payload=release_payload,
-    )
+    release = _find_existing_release(repo, tag, token)
+    if release is None:
+        release = _github_request(
+            "POST",
+            f"https://api.github.com/repos/{repo}/releases",
+            token,
+            payload=release_payload,
+        )
+    else:
+        release = _github_request(
+            "PATCH",
+            release["url"],
+            token,
+            payload={
+                "name": release_payload["name"],
+                "body": release_payload["body"],
+            },
+        )
     upload_url = release["upload_url"].split("{", 1)[0]
     asset_name = urllib.parse.quote(zip_path.name)
     upload_url = f"{upload_url}?name={asset_name}"
+    for asset in release.get("assets", []):
+        if asset["name"] == zip_path.name:
+            _github_request("DELETE", asset["url"], token)
     with zip_path.open("rb") as handle:
         _github_request(
             "POST",
@@ -270,6 +298,8 @@ def main() -> None:
     print(f"打包完成：{zip_path}", flush=True)
 
     if args.publish:
+        if _git("status", "--porcelain").stdout.strip():
+            raise SystemExit("工作区还有未提交改动，请先提交代码再执行一键发布")
         print("准备发布 GitHub Release...", flush=True)
         url = _publish_github(zip_path, version)
         print(f"GitHub Release 已发布：{url}", flush=True)
