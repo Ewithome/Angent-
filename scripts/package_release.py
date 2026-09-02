@@ -112,6 +112,8 @@ def _git(*args: str) -> subprocess.CompletedProcess[str]:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=90,
         )
     except subprocess.TimeoutExpired as exc:
@@ -232,8 +234,13 @@ def _publish_github(zip_path: Path, version: str) -> str:
     _git("push", "origin", "HEAD:main")
     if not _git_quiet("rev-parse", "-q", "--verify", f"refs/tags/{tag}"):
         _git("tag", tag)
+    else:
+        # 同版本再次发布时移动标签，让 Release 指向最新代码
+        _git("tag", "-f", tag)
     if not _git_quiet("ls-remote", "--tags", "origin", f"refs/tags/{tag}"):
         _git("push", "origin", tag)
+    else:
+        _git("push", "--force", "origin", tag)
 
     print("正在创建 GitHub Release...", flush=True)
     release_payload = {
