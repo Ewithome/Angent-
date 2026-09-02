@@ -35,6 +35,9 @@ HARNESS_MODEL = os.getenv(
 )
 HARNESS_MAX_TOKENS = int(os.getenv("HARNESS_MAX_TOKENS", "16384"))
 HARNESS_TIMEOUT_SECONDS = int(os.getenv("HARNESS_TIMEOUT_SECONDS", "300"))
+SKILL_INCLUDE_GLOBAL = os.getenv(
+    "HARNESS_SKILL_INCLUDE_GLOBAL", "true"
+).strip().lower() not in {"0", "false", "no", "off"}
 
 SYSTEM_PROMPT = """你是一名企业内部知识库智能体，名叫“规范助手”，当前运行在 DeepSeek Harness 上。
 你的职责是回答客户关于建筑规范、制度、产品手册和业务流程的问题，并完成工程用量计算与 CAD 图纸生成。
@@ -64,7 +67,7 @@ def _write_mcp_patch() -> Path:
         "      name: '@deepseek-ai/dsh-skill'",
         "    - id: skill-filesystem",
         "      name: '@deepseek-ai/dsh-skill-filesystem'",
-        f"      config: {json.dumps({'includeDefaultRoots': False, 'customSkillDirs': [str(EXAMPLE_SKILLS_DIR), str(USER_SKILLS_DIR)]}, ensure_ascii=False)}",
+        f"      config: {json.dumps(_skill_provider_config(), ensure_ascii=False)}",
         "    - id: skill-tool",
         "      name: '@deepseek-ai/dsh-tool-skill'",
         "",
@@ -120,6 +123,22 @@ def _mcp_server_patch_rows(server: McpServerConfig) -> list[str]:
         "      name: '@deepseek-ai/dsh-mcp-client'",
         f"      config: {json.dumps(config, ensure_ascii=False)}",
     ]
+
+
+def _skill_provider_config() -> dict:
+    """构造技能文件提供方配置：项目技能 + 可选的全局/外部已有技能。"""
+    roots = [str(EXAMPLE_SKILLS_DIR), str(USER_SKILLS_DIR)]
+    extra = os.getenv("HARNESS_SKILL_EXTRA_DIRS", "").strip()
+    if extra:
+        for raw in extra.split(os.pathsep):
+            raw = raw.strip()
+            if raw:
+                path = Path(raw).expanduser()
+                roots.append(str(path if path.is_absolute() else PROJECT_ROOT / path))
+    return {
+        "includeDefaultRoots": SKILL_INCLUDE_GLOBAL,
+        "customSkillDirs": roots,
+    }
 
 
 def _api_key() -> str:

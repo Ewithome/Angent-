@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import time
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -16,6 +17,18 @@ load_dotenv(PROJECT_ROOT / ".env", override=True)
 # 随仓库提供的示例技能；自定义技能统一保存到 .skills，避免内部内容被误提交
 EXAMPLE_SKILLS_DIR = PROJECT_ROOT / "skills"
 USER_SKILLS_DIR = PROJECT_ROOT / ".skills"
+# 官方本地发现默认包含的已有技能根目录
+PROJECT_DSH_SKILLS_DIR = PROJECT_ROOT / ".dsh" / "skills"
+_HARNESS_HOME = Path(os.getenv("HARNESS_HOME") or PROJECT_ROOT / ".harness_home")
+DSH_HOME_SKILLS_DIR = _HARNESS_HOME / "skills"
+AGENTS_HOME_SKILLS_DIR = (
+    Path(os.getenv("DSH_AGENTS_HOME") or Path.home() / ".agents") / "skills"
+)
+EXTERNAL_SKILL_DIRS: list[Path] = [
+    PROJECT_DSH_SKILLS_DIR,
+    DSH_HOME_SKILLS_DIR,
+    AGENTS_HOME_SKILLS_DIR,
+]
 
 _NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _FRONTMATTER_PATTERN = re.compile(
@@ -30,7 +43,9 @@ class SkillInfo(BaseModel):
     name: str = Field(description="kebab-case 技能名称，例如 spec-consultant")
     description: str = Field(description="给模型看的简短用途说明")
     when_to_use: str = Field(default="", description="可选的路由提示")
-    source: Literal["example", "custom"] = Field(description="example 为仓库示例，custom 为用户技能")
+    source: Literal["example", "custom", "external"] = Field(
+        description="example 为仓库示例，custom 为项目用户技能，external 为已有全局技能"
+    )
     path: str = Field(description="SKILL.md 或 .md 文件绝对路径")
     content: str = Field(description="frontmatter 之后的完整指令正文")
     readonly: bool = Field(default=False, description="示例技能是否只读")
@@ -63,7 +78,12 @@ def parse_skill_file(path: Path) -> SkillInfo:
     if not isinstance(description, str) or not description.strip():
         raise ValueError(f"技能缺少 description：{path}")
 
-    source = "custom" if path.is_relative_to(USER_SKILLS_DIR) else "example"
+    if path.is_relative_to(USER_SKILLS_DIR):
+        source = "custom"
+    elif path.is_relative_to(EXAMPLE_SKILLS_DIR):
+        source = "example"
+    else:
+        source = "external"
     return SkillInfo(
         name=name,
         description=description.strip(),
@@ -71,7 +91,7 @@ def parse_skill_file(path: Path) -> SkillInfo:
         source=source,
         path=str(path.resolve()),
         content=match.group(2).strip(),
-        readonly=source == "example",
+        readonly=source != "custom",
     )
 
 
@@ -101,6 +121,11 @@ def list_skills() -> list[SkillInfo]:
     skills = [
         *_scan_root(EXAMPLE_SKILLS_DIR),
         *_scan_root(USER_SKILLS_DIR),
+        *[
+            skill
+            for root in EXTERNAL_SKILL_DIRS
+            for skill in _scan_root(root)
+        ],
     ]
     return sorted(skills, key=lambda skill: skill.name)
 

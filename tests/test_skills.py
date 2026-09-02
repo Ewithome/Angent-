@@ -16,8 +16,10 @@ class SkillStoreTests(unittest.TestCase):
         self._root = Path(self._tmp.name)
         self._old_example = store_module.EXAMPLE_SKILLS_DIR
         self._old_user = store_module.USER_SKILLS_DIR
+        self._old_external = store_module.EXTERNAL_SKILL_DIRS
         store_module.EXAMPLE_SKILLS_DIR = self._root / "skills"
         store_module.USER_SKILLS_DIR = self._root / ".skills"
+        store_module.EXTERNAL_SKILL_DIRS = []
         example = store_module.EXAMPLE_SKILLS_DIR / "spec-consultant"
         example.mkdir(parents=True)
         (example / "SKILL.md").write_text(
@@ -32,6 +34,7 @@ description: 规范条文核查
     def tearDown(self):
         store_module.EXAMPLE_SKILLS_DIR = self._old_example
         store_module.USER_SKILLS_DIR = self._old_user
+        store_module.EXTERNAL_SKILL_DIRS = self._old_external
         self._tmp.cleanup()
 
     def test_list_example_skill(self):
@@ -65,6 +68,25 @@ description: 规范条文核查
         store_module.upsert_skill(name="temp-skill", description="临时", content="正文")
         self.assertTrue(store_module.delete_skill("temp-skill"))
         self.assertIsNone(store_module.get_skill("temp-skill"))
+
+    def test_list_existing_external_skill(self):
+        external = self._root / "external"
+        external.mkdir()
+        store_module.EXTERNAL_SKILL_DIRS = [external]
+        skill_dir = external / "existing-tool"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            """---
+name: existing-tool
+description: 已有的外部技能
+---
+复用已有指令。""",
+            encoding="utf-8",
+        )
+        loaded = store_module.get_skill("existing-tool")
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded.source, "external")
+        self.assertTrue(loaded.readonly)
 
 
 if __name__ == "__main__":

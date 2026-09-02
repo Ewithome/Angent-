@@ -140,7 +140,14 @@ skills/
 └── quantity-review/SKILL.md   # 工程用量复核与计算
 ```
 
-用户通过网页新增的自定义技能保存在项目本地 `.skills/`，该目录已加入 `.gitignore`。技能文件使用 YAML frontmatter：
+用户通过网页新增的自定义技能保存在项目本地 `.skills/`，该目录已加入 `.gitignore`。默认也会链接已有全局技能根目录：
+
+- `~/.agents/skills`：本机已有 Agent Skills
+- `<dshHome>/skills`：DeepSeek Harness home 技能
+- 项目 `.dsh/skills`：项目本地技能
+- 其他目录可通过 `HARNESS_SKILL_EXTRA_DIRS` 配置，多个路径用 `;` 分隔
+
+技能文件使用 YAML frontmatter：
 
 ```markdown
 ---
@@ -153,6 +160,8 @@ whenToUse: 用户咨询规范要求或需要审图结论时使用。
 ```
 
 技能名称必须是小写 kebab-case，例如 `fire-review`。保存后无需重启，Agent Harness 文件监视器会自动把新技能加入下次目录；用户也可以在对话中输入 `/技能名` 主动调用。
+
+MCP 服务同样可以直接“链接已有服务”：在 `MCP 服务配置` 页面填上已有 MCP 的可执行程序或 HTTP 地址即可，无需复制或二次开发。支持 Claude/Cursor/Codex 生态常见的 stdio 与 streamable-http MCP 服务。
 
 ## Agent Harness 接入说明
 
@@ -185,6 +194,8 @@ HARNESS_MAX_TOKENS=16384
 HARNESS_HOME=.harness_home
 HARNESS_WORKSPACE=.harness_workspace
 MCP_CONFIG_FILE=.mcp_servers.json
+HARNESS_SKILL_INCLUDE_GLOBAL=true
+HARNESS_SKILL_EXTRA_DIRS=
 ```
 
 真实 `DEEPSEEK_API_KEY` 仍只保存在本地 `.env`，不会上传到 GitHub。

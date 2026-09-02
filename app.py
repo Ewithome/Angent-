@@ -231,13 +231,17 @@ def render_skills_settings() -> None:
         st.success(saved_message)
 
     st.subheader("Agent Harness 技能管理")
-    st.caption("示例技能位于 skills/；新增技能写入本地 .skills/，不会上传 GitHub")
+    st.caption("示例位于 skills/，自定义写入 .skills/，已有全局技能也会自动显示")
 
     skills = list_skills()
     rows = [
         {
             "技能名称": skill.name,
-            "来源": "示例" if skill.source == "example" else "自定义",
+            "来源": {
+                "example": "示例",
+                "custom": "自定义",
+                "external": "已有全局",
+            }.get(skill.source, "外部"),
             "用途": skill.description,
         }
         for skill in skills
