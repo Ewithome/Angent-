@@ -310,6 +310,11 @@ def main() -> None:
         elif _git("status", "--porcelain").stdout.strip():
             raise SystemExit("工作区还有未提交改动，请先提交代码再执行一键发布")
 
+    # 每次发布都清理 dist，避免历史版本混进最新产物
+    if DIST_DIR.exists():
+        shutil.rmtree(DIST_DIR)
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+
     print(f"开始打包 v{version}...", flush=True)
     build_dir = _copy_tracked_files(DIST_DIR / f"enterprise-knowledge-agent-{version}", version)
     zip_path = _make_zip(build_dir, version)
