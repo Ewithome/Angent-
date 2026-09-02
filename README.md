@@ -7,6 +7,7 @@
 - 使用 LangChain v1 最新的 `create_agent`，替代已弃用的 `langgraph.prebuilt.create_react_agent`
 - 可选接入 DeepSeek 官方 Agent Harness：通过内置 MCP 客户端把知识库、用量计算、CAD 工具注册给 Harness
 - MCP 服务可配置：网页可新增/修改/删除 stdio 或 streamable-http 外部 MCP 服务，配置实时写入 `.mcp_servers.json`
+- Skills 技能能力：Agent Harness 可发现并加载 `SKILL.md` 技能，网页可新增/编辑/删除自定义技能
 - Harness 模式关闭默认终端/编辑器，只暴露受控领域工具，会话持久化到项目 `.harness_home/`
 - 多格式文档清洗流水线：支持 PDF、Word、PPT、Markdown、TXT，含表格与幻灯片文本解析
 - 语义分块 + 轻量向量检索：TF-IDF 字符级 n-gram，适合中文文档
@@ -127,6 +128,32 @@ uvicorn api.main:app --reload --port 8000
 curl -X POST http://127.0.0.1:8000/api/v1/mcp/servers/reload
 ```
 
+## Skills 技能
+
+侧栏选择 `技能管理` 可查看和管理技能。技能是给 Agent 的可复用任务指令，Agent Harness 会在会话中自动展示技能目录，并在任务匹配时调用 `skill` 工具加载完整指令。
+
+仓库示例技能位于 `skills/`：
+
+```text
+skills/
+├── spec-consultant/SKILL.md   # 建筑规范条文核查与合规审图
+└── quantity-review/SKILL.md   # 工程用量复核与计算
+```
+
+用户通过网页新增的自定义技能保存在项目本地 `.skills/`，该目录已加入 `.gitignore`。技能文件使用 YAML frontmatter：
+
+```markdown
+---
+name: spec-consultant
+description: 建筑规范条文核查技能，用于回答规范要求并给出来源。
+whenToUse: 用户咨询规范要求或需要审图结论时使用。
+---
+
+先调用 mcp__building__search_knowledge 检索知识库，再引用来源作答。
+```
+
+技能名称必须是小写 kebab-case，例如 `fire-review`。保存后无需重启，Agent Harness 文件监视器会自动把新技能加入下次目录；用户也可以在对话中输入 `/技能名` 主动调用。
+
 ## Agent Harness 接入说明
 
 Agent Harness 采用“一切皆插件”架构。本项目保留 LangChain 作为默认业务链路，并新增 `harness/` 接入层：
@@ -136,10 +163,12 @@ harness/
 ├── agent.py       # Harness 配置、patch 生成、进程级复用、对话执行
 ├── mcp_config.py  # MCP 服务配置模型与本地 JSON 存储
 ├── mcp_server.py  # 内置知识库与建筑工具 MCP 服务
+├── skills_store.py # Skills 目录解析与本地技能存储
 └── __init__.py
 ```
 
 自定义 MCP 配置示例见 `mcp_servers.example.json`。
+示例技能见 `skills/`，自定义技能保存在本地 `.skills/`。
 
 运行逻辑：
 
@@ -216,6 +245,10 @@ python -m unittest discover -s tests -v
 | PUT | `/api/v1/mcp/servers/{name}` | 修改 MCP 服务 |
 | DELETE | `/api/v1/mcp/servers/{name}` | 删除 MCP 服务 |
 | POST | `/api/v1/mcp/servers/reload` | 让 Agent Harness 下次对话重新加载 MCP 服务 |
+| GET | `/api/v1/skills` | 获取技能列表 |
+| POST | `/api/v1/skills` | 新增技能 |
+| PUT | `/api/v1/skills/{name}` | 更新技能 |
+| DELETE | `/api/v1/skills/{name}` | 删除自定义技能 |
 
 对话接口请求示例：
 

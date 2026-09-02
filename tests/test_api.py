@@ -87,6 +87,45 @@ class McpApiTests(unittest.TestCase):
             self.assertEqual(deleted.status_code, 200)
 
 
+class SkillApiTests(unittest.TestCase):
+    """验证技能管理接口；测试结束后清理自定义技能。"""
+
+    TEST_NAME = "api-skill-test"
+
+    def test_skill_crud(self):
+        listed = client.get("/api/v1/skills")
+        self.assertEqual(listed.status_code, 200)
+        self.assertGreaterEqual(len(listed.json()["data"]), 1)
+
+        try:
+            created = client.post(
+                "/api/v1/skills",
+                json={
+                    "name": self.TEST_NAME,
+                    "description": "接口测试技能",
+                    "when_to_use": "测试时",
+                    "content": "按知识库结果回答。",
+                },
+            )
+            self.assertEqual(created.status_code, 200)
+            self.assertEqual(created.json()["code"], 0)
+
+            updated = client.put(
+                f"/api/v1/skills/{self.TEST_NAME}",
+                json={
+                    "name": self.TEST_NAME,
+                    "description": "接口测试技能-已更新",
+                    "when_to_use": "",
+                    "content": "按更新后的规则回答。",
+                },
+            )
+            self.assertEqual(updated.status_code, 200)
+            self.assertEqual(updated.json()["data"]["description"], "接口测试技能-已更新")
+        finally:
+            deleted = client.delete(f"/api/v1/skills/{self.TEST_NAME}")
+            self.assertEqual(deleted.status_code, 200)
+
+
 @unittest.skipUnless(_has_real_key(), "未配置真实 DeepSeek Key，跳过对话接口测试")
 class ChatApiTests(unittest.TestCase):
     """验证真实对话、会话查询与删除。"""

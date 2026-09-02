@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.config import get_settings
 from api.logging import setup_logging
-from api.routers import chat, health, mcp_servers, sessions
+from api.routers import chat, health, mcp_servers, sessions, skills
 from api.schemas import ApiResponse
 
 setup_logging()
@@ -99,6 +99,7 @@ app.include_router(health.router, prefix=settings.api_prefix)
 app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(sessions.router, prefix=settings.api_prefix)
 app.include_router(mcp_servers.router, prefix=settings.api_prefix)
+app.include_router(skills.router, prefix=settings.api_prefix)
 
 
 @app.get("/", tags=["系统"])

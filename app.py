@@ -222,6 +222,94 @@ def render_mcp_settings() -> None:
                 st.error(f"保存失败：{exc}")
 
 
+def render_skills_settings() -> None:
+    """网页端技能管理：查看示例技能、新增和编辑 Agent Harness 技能。"""
+    from harness.skills_store import delete_skill, list_skills, upsert_skill
+
+    saved_message = st.session_state.pop("skill_saved_message", "")
+    if saved_message:
+        st.success(saved_message)
+
+    st.subheader("Agent Harness 技能管理")
+    st.caption("示例技能位于 skills/；新增技能写入本地 .skills/，不会上传 GitHub")
+
+    skills = list_skills()
+    rows = [
+        {
+            "技能名称": skill.name,
+            "来源": "示例" if skill.source == "example" else "自定义",
+            "用途": skill.description,
+        }
+        for skill in skills
+    ]
+    if rows:
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+    else:
+        st.write("暂无可用技能。")
+
+    custom_skills = [skill for skill in skills if skill.source == "custom"]
+    st.markdown("#### 自定义技能")
+    for skill in custom_skills:
+        col1, col2 = st.columns([5, 1])
+        col1.write(f"**{skill.name}** - {skill.description}")
+        if col2.button("删除", key=f"delete-skill-{skill.name}", use_container_width=True):
+            try:
+                delete_skill(skill.name)
+                st.session_state["skill_saved_message"] = f"技能 {skill.name} 已删除"
+                st.rerun()
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"删除失败：{exc}")
+    if not custom_skills:
+        st.write("暂无自定义技能，可在下方新增。")
+
+    st.markdown("#### 新增 / 编辑")
+    target = st.selectbox(
+        "编辑目标",
+        ["新建技能", *[skill.name for skill in custom_skills]],
+    )
+    current = next((skill for skill in custom_skills if skill.name == target), None)
+
+    with st.form("skill_form", clear_on_submit=current is None):
+        name = st.text_input(
+            "技能名称",
+            value=current.name if current else "",
+            disabled=current is not None,
+            placeholder="kebab-case，例如 spec-consultant",
+        )
+        description = st.text_input(
+            "用途说明",
+            value=current.description if current else "",
+            max_chars=500,
+        )
+        when_to_use = st.text_input(
+            "使用时机",
+            value=current.when_to_use if current else "",
+            max_chars=500,
+        )
+        content = st.text_area(
+            "指令正文",
+            value=current.content if current else "",
+            height=260,
+            help="只需填写 Markdown 正文，系统会自动生成 frontmatter",
+        )
+
+        submitted = st.form_submit_button("保存技能", use_container_width=True)
+        if submitted:
+            try:
+                saved = upsert_skill(
+                    name=name,
+                    description=description,
+                    when_to_use=when_to_use,
+                    content=content,
+                )
+                st.session_state["skill_saved_message"] = (
+                    f"技能 {saved.name} 已保存，Agent Harness 会自动发现"
+                )
+                st.rerun()
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"保存失败：{exc}")
+
+
 try:
     agent = get_agent()
 except ValueError as exc:
@@ -238,9 +326,12 @@ st.title("建筑规范图集智能体")
 
 page = st.sidebar.radio(
     "功能",
-    ["智能体对话", "MCP 服务配置"],
+    ["智能体对话", "技能管理", "MCP 服务配置"],
     index=0,
 )
+if page == "技能管理":
+    render_skills_settings()
+    st.stop()
 if page == "MCP 服务配置":
     render_mcp_settings()
     st.stop()

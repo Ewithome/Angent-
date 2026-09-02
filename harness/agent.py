@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from deepseek_harness import DeepSeekHarness, DeepSeekHarnessConfig
 
 from harness.mcp_config import McpServerConfig, get_mcp_store, list_enabled_servers
+from harness.skills_store import EXAMPLE_SKILLS_DIR, USER_SKILLS_DIR
 
 # 项目根目录：MCP 工具子进程需要在这里启动，才能导入 knowledge_base 等模块
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -57,7 +58,17 @@ def _write_mcp_patch() -> Path:
     patch_path = generated_dir / "enterprise-building.patch.yml"
 
     patch_lines = [
-        "# MCP 服务配置由 harness/agent.py 自动生成，不要手工提交",
+        "# Agent Harness 运行配置由 harness/agent.py 自动生成，不要手工提交",
+        "- insert:",
+        "    - id: skill-registry",
+        "      name: '@deepseek-ai/dsh-skill'",
+        "    - id: skill-filesystem",
+        "      name: '@deepseek-ai/dsh-skill-filesystem'",
+        f"      config: {json.dumps({'includeDefaultRoots': False, 'customSkillDirs': [str(EXAMPLE_SKILLS_DIR), str(USER_SKILLS_DIR)]}, ensure_ascii=False)}",
+        "    - id: skill-tool",
+        "      name: '@deepseek-ai/dsh-tool-skill'",
+        "",
+        "# 内置与自定义 MCP 服务",
     ]
     for server in list_enabled_servers():
         patch_lines.extend(_mcp_server_patch_rows(server))

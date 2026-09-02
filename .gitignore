@@ -12,6 +12,7 @@ agent_memory.db-wal
 .harness_home/
 .harness_workspace/
 .mcp_servers.json
+.skills/
 notes/*.md
 !notes/.gitkeep
 .DS_Store
@@ -24,3 +25,4 @@ knowledge/*.md
 outputs/cad/*.dxf
 outputs/eval_report.json
 eval/*.jsonl
+*.baiduyun.uploading.cfg
